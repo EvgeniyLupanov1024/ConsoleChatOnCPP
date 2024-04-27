@@ -30,28 +30,33 @@ int main()
 
     char send_buffer[BUFFER_LEN] = {0};
     printf("Введите сообщение: ");
-    scanf("%s", send_buffer);
 
-    printf("send started\n");
-    send(
-        client_socket, 
-        send_buffer, 
-        BUFFER_LEN, 
-        0
-    );
+    while(true) 
+    {
+        scanf("%s", send_buffer);
 
-    char recv_buffer[BUFFER_LEN] = {0};
-    printf("recv started\n");
-    recv(
-        client_socket, 
-        recv_buffer, 
-        BUFFER_LEN, 
-        0
-    );
+        printf("send started\n");
+        send(
+            client_socket, 
+            send_buffer, 
+            BUFFER_LEN, 
+            0
+        );
+
+        char recv_buffer[BUFFER_LEN] = {0};
+        printf("recv started\n");
+        recv(
+            client_socket, 
+            recv_buffer, 
+            BUFFER_LEN, 
+            0
+        );
+        
+        printf("%s\n", recv_buffer);
+    }
 
     shutdown(client_socket, SHUT_RDWR);
     close(client_socket);
-    printf("%s\n", recv_buffer);
 
     return 0;
 }
