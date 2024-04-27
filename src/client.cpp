@@ -20,8 +20,6 @@ int main()
 	sockaddr.sin_port = htons(8011);
     sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    printf("Client started\n");
-
     connect(
         client_socket,
         (struct sockaddr *) &sockaddr,
@@ -35,7 +33,6 @@ int main()
     {
         scanf("%s", send_buffer);
 
-        printf("send started\n");
         send(
             client_socket, 
             send_buffer, 
@@ -44,14 +41,13 @@ int main()
         );
 
         char recv_buffer[BUFFER_LEN] = {0};
-        printf("recv started\n");
         recv(
             client_socket, 
             recv_buffer, 
             BUFFER_LEN, 
             0
         );
-        
+
         printf("%s\n", recv_buffer);
     }
 
