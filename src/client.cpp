@@ -26,30 +26,40 @@ int main()
         sizeof sockaddr
     );
 
-    char send_buffer[BUFFER_LEN] = {0};
-    printf("Введите сообщение: ");
+    if (fork() == 0) {
+        while(true) // чтение
+        {
+            char recv_buffer[BUFFER_LEN] = {0};
+            int recv_res = recv(
+                client_socket, 
+                recv_buffer, 
+                BUFFER_LEN, 
+                0
+            );
 
-    while(true) 
+            // if (recv_res == 0 && errno != EAGAIN) {
+            //     shutdown(client_socket, SHUT_RDWR);
+            //     close(client_socket);
+            //     exit(0);
+            // }
+
+            printf("%s\n", recv_buffer);
+        }
+    }
+
+    printf("Введите сообщение: ");
+    char send_buffer[BUFFER_LEN] = {0};
+
+    while(true) // отправка
     {
         scanf("%s", send_buffer);
-
         send(
             client_socket, 
             send_buffer, 
             BUFFER_LEN, 
             0
         );
-
-        char recv_buffer[BUFFER_LEN] = {0};
-        recv(
-            client_socket, 
-            recv_buffer, 
-            BUFFER_LEN, 
-            0
-        );
-
-        printf("%s\n", recv_buffer);
-    }
+    }  
 
     shutdown(client_socket, SHUT_RDWR);
     close(client_socket);
