@@ -43,6 +43,7 @@ int main()
     master_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, master_socket, &master_event);
 
+    printf("=== start server\n");
     while (true)
     {
         struct epoll_event events[MAX_EPOOL_EVENTS];
@@ -51,6 +52,7 @@ int main()
         for (int i = 0; i < n; i++) 
         {
             if (events[i].data.fd == master_socket) {
+                printf("=== accept\n");
                 int slave_socket = accept(master_socket, 0, 0);
 
                 struct epoll_event slave_event;
@@ -62,6 +64,7 @@ int main()
                 continue;
             }
 
+            printf("=== recv\n");
             int slave_socket = events[i].data.fd;
             char buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, buffer, BUFFER_LEN, 0);

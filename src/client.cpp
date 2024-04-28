@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <cstring>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -9,6 +10,8 @@
 
 int main()
 {
+    // system("gnome-terminal -- bash -c \"./build/server\" ");
+
     int client_socket = socket(
         AF_INET,
         SOCK_STREAM,
@@ -27,9 +30,10 @@ int main()
     );
 
     if (fork() == 0) {
+        char recv_buffer[BUFFER_LEN] = {0};
+        
         while(true) // чтение
         {
-            char recv_buffer[BUFFER_LEN] = {0};
             int recv_res = recv(
                 client_socket, 
                 recv_buffer, 
@@ -37,29 +41,31 @@ int main()
                 0
             );
 
-            // if (recv_res == 0 && errno != EAGAIN) {
-            //     shutdown(client_socket, SHUT_RDWR);
-            //     close(client_socket);
-            //     exit(0);
-            // }
+            if (recv_res == 0) {
+                printf("server is gone ._.");
+                exit(0);
+            }
 
             printf("%s\n", recv_buffer);
         }
-    }
+    } 
 
     printf("Введите сообщение: ");
     char send_buffer[BUFFER_LEN] = {0};
 
     while(true) // отправка
     {
-        scanf("%s", send_buffer);
+        fgets(send_buffer, BUFFER_LEN, stdin);
+        int message_len = strlen(send_buffer);
+        send_buffer[message_len - 1] = '\0';
+
         send(
             client_socket, 
             send_buffer, 
-            BUFFER_LEN, 
+            message_len, 
             0
         );
-    }  
+    } 
 
     shutdown(client_socket, SHUT_RDWR);
     close(client_socket);
