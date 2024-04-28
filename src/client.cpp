@@ -6,11 +6,43 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <thread>
+
 #define BUFFER_LEN 256
+
+struct ListenServerArgs
+{
+    int socket;
+};
+
+void * listenServer(void * args)
+{
+    int socket = ((ListenServerArgs *) args)->socket;
+    char recv_buffer[BUFFER_LEN] = {0};
+        
+    while(true) // чтение
+    {
+        int recv_res = recv(
+            socket, 
+            recv_buffer, 
+            BUFFER_LEN, 
+            0
+        );
+
+        if (recv_res == 0) {
+            printf("server is gone ._.\n");
+            break;
+        }
+
+        printf("%s\n", recv_buffer);
+    }
+
+    return NULL;
+}
 
 int main()
 {
-    // system("gnome-terminal -- bash -c \"./build/server\" ");
+    // system("gnome-terminal -- bash -c \"./server\" ");
 
     int client_socket = socket(
         AF_INET,
@@ -29,26 +61,9 @@ int main()
         sizeof sockaddr
     );
 
-    if (fork() == 0) {
-        char recv_buffer[BUFFER_LEN] = {0};
-        
-        while(true) // чтение
-        {
-            int recv_res = recv(
-                client_socket, 
-                recv_buffer, 
-                BUFFER_LEN, 
-                0
-            );
-
-            if (recv_res == 0) {
-                printf("server is gone ._.");
-                exit(0);
-            }
-
-            printf("%s\n", recv_buffer);
-        }
-    } 
+    struct ListenServerArgs listen_server_args = {client_socket};
+    std::thread listen_server_thread(listenServer, &listen_server_args);
+    listen_server_thread.detach();
 
     printf("Введите сообщение: ");
     char send_buffer[BUFFER_LEN] = {0};
