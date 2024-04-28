@@ -69,7 +69,7 @@ int main()
             char buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, buffer, BUFFER_LEN, 0);
 
-            if (recv_res == 0 && errno != EAGAIN) {
+            if (recv_res == 0) {
                 shutdown(slave_socket, SHUT_RDWR);
                 close(slave_socket);
                 slave_sockets.erase(slave_socket);

@@ -20,7 +20,7 @@ void * listenServer(void * args)
     int socket = ((ListenServerArgs *) args)->socket;
     char recv_buffer[BUFFER_LEN] = {0};
         
-    while(true) // чтение
+    while(true)
     {
         int recv_res = recv(
             socket, 
@@ -49,20 +49,48 @@ int main()
         SOCK_STREAM,
         0
     );
-
+    
     struct sockaddr_in sockaddr;
     sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = htons(8011);
+    sockaddr.sin_port = htons(8011);
     sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    connect(
-        client_socket,
-        (struct sockaddr *) &sockaddr,
-        sizeof sockaddr
-    );
+    while (true) // подключение
+    {
+        int connect_res = connect(
+            client_socket,
+            (struct sockaddr *) &sockaddr,
+            sizeof sockaddr
+        );
+
+        if (connect_res == 0) {
+            break;
+        } else if (errno == EAGAIN) {
+            continue;
+        } 
+        
+        switch (errno)
+        {
+            case ENETUNREACH:
+                perror("Нет сети");
+                break;
+
+            case ECONNREFUSED:
+                perror("Нет сервера по указанному адресу");
+                break;
+
+            case ETIMEDOUT:
+                perror("Время ожидания подключения к серверу вышло");
+                break;
+            
+            default:
+                perror("Ошибка подключения к серверу");
+        }
+        exit(EXIT_FAILURE);
+    }
 
     struct ListenServerArgs listen_server_args = {client_socket};
-    std::thread listen_server_thread(listenServer, &listen_server_args);
+    std::thread listen_server_thread(listenServer, &listen_server_args); // чтение
     listen_server_thread.detach();
 
     printf("Введите сообщение: ");
