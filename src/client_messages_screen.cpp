@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
     char read_buffer[BUFFER_LEN] = {0};
     int read_res;
-    while(true) 
+    while(true)
     {
         read_res = read(get_msg_fd, read_buffer, BUFFER_LEN);
         if (read_res == 0) {
