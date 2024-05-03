@@ -1,14 +1,18 @@
 #include <iostream>
+#include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 
 #include <thread>
 
 #define BUFFER_LEN 256
+#define FIFO_SCREEN_NAME "fifo_client_msg"
+#define APP_SCREEN_NAME "client_messages_screen"
 
 struct ListenServerArgs
 {
@@ -17,9 +21,23 @@ struct ListenServerArgs
 
 void * listenServer(void * args)
 {
+    unlink(FIFO_SCREEN_NAME);
+    if (mkfifo(FIFO_SCREEN_NAME, 0666) == -1) {
+        fprintf(stderr, "Невозможно создать fifo\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int msg_print_fd = open(FIFO_SCREEN_NAME, O_RDWR);
+    if(msg_print_fd == - 1) {
+        fprintf(stderr, "Невозможно открыть fifo\n");
+        exit(EXIT_FAILURE);
+
+    }
+
+    system("gnome-terminal -- bash -c \"./client_messages_screen\" ");
+
     int socket = ((ListenServerArgs *) args)->socket;
     char recv_buffer[BUFFER_LEN] = {0};
-        
     while(true)
     {
         int recv_res = recv(
@@ -30,20 +48,19 @@ void * listenServer(void * args)
         );
 
         if (recv_res == 0) {
-            printf("server is gone ._.\n");
+            fprintf(stderr, "server is gone ._.\n");
             break;
         }
 
-        printf("%s\n", recv_buffer);
+        write(msg_print_fd, recv_buffer, recv_res); // отображение
     }
 
+    close(msg_print_fd);
     return NULL;
 }
 
 int main()
 {
-    // system("gnome-terminal -- bash -c \"./server\" ");
-
     int client_socket = socket(
         AF_INET,
         SOCK_STREAM,
@@ -55,7 +72,8 @@ int main()
     sockaddr.sin_port = htons(8011);
     sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    while (true) // подключение
+    printf("=== подключение к серверу\n");
+    while (true)
     {
         int connect_res = connect(
             client_socket,
@@ -72,31 +90,31 @@ int main()
         switch (errno)
         {
             case ENETUNREACH:
-                perror("Нет сети");
+                fprintf(stderr, "Нет сети");
                 break;
 
             case ECONNREFUSED:
-                perror("Нет сервера по указанному адресу");
+                fprintf(stderr, "Нет сервера по указанному адресу");
                 break;
 
             case ETIMEDOUT:
-                perror("Время ожидания подключения к серверу вышло");
+                fprintf(stderr, "Время ожидания подключения к серверу вышло");
                 break;
             
             default:
-                perror("Ошибка подключения к серверу");
+                fprintf(stderr, "Ошибка подключения к серверу");
         }
         exit(EXIT_FAILURE);
     }
 
+    printf("=== чтение сообщений сервера\n");
     struct ListenServerArgs listen_server_args = {client_socket};
     std::thread listen_server_thread(listenServer, &listen_server_args); // чтение
     listen_server_thread.detach();
 
-    printf("Введите сообщение: ");
+    printf("=== отправка сообщений на сервер\n");
     char send_buffer[BUFFER_LEN] = {0};
-
-    while(true) // отправка
+    while(true)
     {
         fgets(send_buffer, BUFFER_LEN, stdin);
         int message_len = strlen(send_buffer);
