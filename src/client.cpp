@@ -183,8 +183,12 @@ int main()
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
     write_to_server_thread.detach();
 
-    signal(SIGTERM, closeClientHandler);
-    signal(SIGINT, closeClientHandler);
+    struct sigaction close_client_action;
+    memset(&close_client_action, 0, sizeof(close_client_action));
+    close_client_action.sa_handler = closeClientHandler;
+
+    sigaction(SIGTERM, &close_client_action, NULL);
+    sigaction(SIGINT, &close_client_action, NULL);
 
     while(true) 
     {
