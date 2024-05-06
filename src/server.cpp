@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <set>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,6 +11,17 @@
 #define MAX_CONNECTIONS 5
 #define BUFFER_LEN 256
 #define MAX_EPOOL_EVENTS 32
+
+void printfStatus(const char *status_text, ...)
+{
+    char buf[256];
+    strcpy(buf, "-- ");
+    strcat(buf, status_text);
+    strcat(buf, "...\n");
+    va_list args;
+
+    printf(buf, args);
+}
 
 int main()
 {
@@ -43,7 +55,7 @@ int main()
     master_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, master_socket, &master_event);
 
-    printf("=== start server\n");
+    printfStatus("start server");
     while (true)
     {
         struct epoll_event events[MAX_EPOOL_EVENTS];
@@ -52,7 +64,7 @@ int main()
         for (int i = 0; i < n; i++) 
         {
             if (events[i].data.fd == master_socket) {
-                printf("=== accept\n");
+                printfStatus("accept");
                 int slave_socket = accept(master_socket, 0, 0);
 
                 struct epoll_event slave_event;
@@ -64,7 +76,7 @@ int main()
                 continue;
             }
 
-            printf("=== recv\n");
+            printfStatus("recv");
             int slave_socket = events[i].data.fd;
             char buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, buffer, BUFFER_LEN, 0);

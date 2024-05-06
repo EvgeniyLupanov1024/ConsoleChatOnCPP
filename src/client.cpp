@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <netinet/in.h>
 
 #include <thread>
@@ -34,19 +35,19 @@ void connectToSrver(int socket, sockaddr_in sockaddr)
         switch (errno)
         {
             case ENETUNREACH:
-                fprintf(stderr, "Нет сети");
+                fprintf(stderr, "Нет сети\n");
                 break;
 
             case ECONNREFUSED:
-                fprintf(stderr, "Нет сервера по указанному адресу");
+                fprintf(stderr, "Нет сервера по указанному адресу\n");
                 break;
 
             case ETIMEDOUT:
-                fprintf(stderr, "Время ожидания подключения к серверу вышло");
+                fprintf(stderr, "Время ожидания подключения к серверу вышло\n");
                 break;
             
             default:
-                fprintf(stderr, "Ошибка подключения к серверу");
+                fprintf(stderr, "Ошибка подключения к серверу\n");
         }
         exit(EXIT_FAILURE);
     }
@@ -76,21 +77,17 @@ int closeMessagesScreen(int msg_scr_fd)
     return close(msg_scr_fd);
 }
 
-int writeMessagesScreen(int msg_scr_fd, char *buf, int n)
-{
-    return write(msg_scr_fd, buf, n);
-}
-
 struct ListenServerArgs
 {
     int socket;
+    int msg_scr_fd;
 };
 
 void * listenServer(void *args)
 {
-    int msg_scr_fd = openMessagesScreen();
-
     int socket = ((ListenServerArgs *) args)->socket;
+    int msg_scr_fd = ((ListenServerArgs *) args)->msg_scr_fd;
+
     char recv_buffer[BUFFER_LEN] = {0};
     while(true)
     {
@@ -103,13 +100,13 @@ void * listenServer(void *args)
 
         if (recv_res == 0) {
             fprintf(stderr, "server is gone ._.\n");
+            kill(getpid(), SIGTERM);
             break;
         }
 
-        writeMessagesScreen(msg_scr_fd, recv_buffer, recv_res);
+        write(msg_scr_fd, recv_buffer, recv_res);
     }
 
-    closeMessagesScreen(msg_scr_fd);
     return NULL;
 }
 
@@ -143,12 +140,18 @@ void * writeToServer(void *args)
 void printfStatus(const char *status_text, ...)
 {
     char buf[256];
-    strcpy(buf, "=== ");
+    strcpy(buf, "-- ");
     strcat(buf, status_text);
     strcat(buf, "...\n");
     va_list args;
 
     printf(buf, args);
+}
+
+bool close_client = false;
+void closeClientHandler(int signum) 
+{
+    close_client = true;
 }
 
 int main()
@@ -167,17 +170,32 @@ int main()
     printfStatus("подключение к серверу");
     connectToSrver(server_socket, sockaddr);
 
+    printfStatus("открытие окна чата");
+    int msg_scr_fd = openMessagesScreen();
+
     printfStatus("чтение сообщений с сервера");
-    ListenServerArgs listen_server_args = {server_socket};
+    ListenServerArgs listen_server_args = {server_socket, msg_scr_fd};
     std::thread listen_server_thread(listenServer, &listen_server_args);
+    listen_server_thread.detach();
 
     printfStatus("отправка сообщений на сервер");
     WriteToServerArgs write_to_server_args = {server_socket};
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
+    write_to_server_thread.detach();
 
-    write_to_server_thread.join();
-    listen_server_thread.join();
+    signal(SIGTERM, closeClientHandler);
+    signal(SIGINT, closeClientHandler);
 
+    while(true) 
+    {
+        pause();
+        if (close_client) {
+            break;
+        }
+    }
+
+    printfStatus("закрытие клиента");
+    closeMessagesScreen(msg_scr_fd);
     shutdown(server_socket, SHUT_RDWR);
     close(server_socket);
 
