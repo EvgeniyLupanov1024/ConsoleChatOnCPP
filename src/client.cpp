@@ -126,6 +126,11 @@ void * writeToServer(void *args)
         int message_len = strlen(send_buffer);
         send_buffer[message_len - 1] = '\0';
 
+        if (strcmp(send_buffer, "exit") == 0) {
+            kill(getpid(), SIGTERM);
+            break;
+        }
+
         send(
             socket, 
             send_buffer, 
