@@ -16,6 +16,12 @@
 #define FIFO_SCREEN_NAME "fifo_client_msg"
 #define APP_SCREEN_NAME "client_messages_screen"
 
+bool close_client = false;
+void closeClientHandler(int signum) 
+{
+    close_client = true;
+}
+
 void connectToSrver(int socket, sockaddr_in sockaddr)
 {
     while (true)
@@ -98,6 +104,10 @@ void * listenServer(void *args)
             0
         );
 
+        if (close_client) {
+            break;
+        }
+
         if (recv_res == 0) {
             fprintf(stderr, "server is gone ._.\n");
             kill(getpid(), SIGTERM);
@@ -125,6 +135,10 @@ void * writeToServer(void *args)
         fgets(send_buffer, BUFFER_LEN, stdin);
         int message_len = strlen(send_buffer);
         send_buffer[message_len - 1] = '\0';
+        
+        if (close_client) {
+            break;
+        }
 
         if (strcmp(send_buffer, "exit") == 0) {
             kill(getpid(), SIGTERM);
@@ -153,12 +167,6 @@ void printfStatus(const char *status_text, ...)
     printf(buf, args);
 }
 
-bool close_client = false;
-void closeClientHandler(int signum) 
-{
-    close_client = true;
-}
-
 int main()
 {
     int server_socket = socket(
@@ -181,12 +189,10 @@ int main()
     printfStatus("чтение сообщений с сервера");
     ListenServerArgs listen_server_args = {server_socket, msg_scr_fd};
     std::thread listen_server_thread(listenServer, &listen_server_args);
-    listen_server_thread.detach();
 
     printfStatus("отправка сообщений на сервер");
     WriteToServerArgs write_to_server_args = {server_socket};
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
-    write_to_server_thread.detach();
 
     struct sigaction close_client_action;
     memset(&close_client_action, 0, sizeof(close_client_action));
@@ -204,9 +210,13 @@ int main()
     }
 
     printfStatus("закрытие клиента");
-    closeMessagesScreen(msg_scr_fd);
+    
     shutdown(server_socket, SHUT_RDWR);
     close(server_socket);
+    listen_server_thread.join();
+    write_to_server_thread.join();
+
+    closeMessagesScreen(msg_scr_fd);
 
     return 0;
 }
