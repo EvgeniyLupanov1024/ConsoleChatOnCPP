@@ -14,12 +14,60 @@
 
 #define BUFFER_LEN 256
 #define FIFO_SCREEN_NAME "fifo_client_msg"
-#define APP_SCREEN_NAME "client_messages_screen"
+#define APP_SCREEN_NAME "client_message_screen"
 
 bool close_client = false;
 void closeClientHandler(int signum) 
 {
     close_client = true;
+}
+
+pid_t message_screen_pid = -1;
+void setMessageScreenPid(int signum, siginfo_t *siginfo, void *ptr)  
+{
+    message_screen_pid = siginfo->si_pid;
+}
+
+int openMessagesScreen()
+{
+    unlink(FIFO_SCREEN_NAME);
+    if (mkfifo(FIFO_SCREEN_NAME, 0666) == -1) {
+        fprintf(stderr, "Невозможно создать fifo\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int msg_scr_fd = open(FIFO_SCREEN_NAME, O_RDWR);
+    if(msg_scr_fd == -1) {
+        fprintf(stderr, "Невозможно открыть fifo\n");
+        exit(EXIT_FAILURE);
+    }
+
+    struct sigaction set_message_screen_pid_action;
+    memset(&set_message_screen_pid_action, 0, sizeof(set_message_screen_pid_action));
+    set_message_screen_pid_action.sa_sigaction = setMessageScreenPid;
+    set_message_screen_pid_action.sa_flags = SA_RESTART | SA_SIGINFO;
+    sigaction(SIGUSR1, &set_message_screen_pid_action, NULL);
+
+    char command_str[256];
+    sprintf(command_str, "gnome-terminal -- bash -c \"./%s %d\"", APP_SCREEN_NAME, getpid());
+    system(command_str);
+    while (message_screen_pid == -1) 
+    {
+        pause();
+    }
+
+    return msg_scr_fd;
+}
+
+void closeMessagesScreen(int msg_scr_fd)
+{
+    if (message_screen_pid == 0) {
+        std::cerr << "Неверный pid процесса message screen\n";
+    }
+    kill(message_screen_pid, SIGTERM);
+
+    close(msg_scr_fd);
+    unlink(FIFO_SCREEN_NAME);
 }
 
 void connectToSrver(int socket, sockaddr_in sockaddr)
@@ -57,30 +105,6 @@ void connectToSrver(int socket, sockaddr_in sockaddr)
         }
         exit(EXIT_FAILURE);
     }
-}
-
-int openMessagesScreen()
-{
-    unlink(FIFO_SCREEN_NAME);
-    if (mkfifo(FIFO_SCREEN_NAME, 0666) == -1) {
-        fprintf(stderr, "Невозможно создать fifo\n");
-        exit(EXIT_FAILURE);
-    }
-
-    int msg_scr_fd = open(FIFO_SCREEN_NAME, O_RDWR);
-    if(msg_scr_fd == -1) {
-        fprintf(stderr, "Невозможно открыть fifo\n");
-        exit(EXIT_FAILURE);
-    }
-
-    system("gnome-terminal -- bash -c \"./client_messages_screen\" ");
-
-    return msg_scr_fd;
-}
-
-int closeMessagesScreen(int msg_scr_fd)
-{
-    return close(msg_scr_fd);
 }
 
 struct ListenServerArgs
@@ -186,13 +210,12 @@ int main()
     printfStatus("открытие окна чата");
     int msg_scr_fd = openMessagesScreen();
 
-    printfStatus("чтение сообщений с сервера");
     ListenServerArgs listen_server_args = {server_socket, msg_scr_fd};
     std::thread listen_server_thread(listenServer, &listen_server_args);
 
-    printfStatus("отправка сообщений на сервер");
     WriteToServerArgs write_to_server_args = {server_socket};
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
+    write_to_server_thread.detach();
 
     struct sigaction close_client_action;
     memset(&close_client_action, 0, sizeof(close_client_action));
@@ -210,12 +233,10 @@ int main()
     }
 
     printfStatus("закрытие клиента");
-    
     shutdown(server_socket, SHUT_RDWR);
     close(server_socket);
-    listen_server_thread.join();
-    write_to_server_thread.join();
 
+    listen_server_thread.join();
     closeMessagesScreen(msg_scr_fd);
 
     return 0;
