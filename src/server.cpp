@@ -29,7 +29,7 @@ std::set<int> slave_sockets;
 int epoll_fd;
 void closeServer()
 {
-    std::cout << "завершение работы сервера";
+    std::cout << "завершение работы сервера\n";
     close(epoll_fd);
 
     for (int slave_socket : slave_sockets) {
@@ -47,10 +47,8 @@ void closeServerHandler(int signum)
     closeServer();
 }
 
-int main()
+void startServer()
 {
-    printfStatus("запуск сервера");
-
     master_socket = socket(
         AF_INET,
         SOCK_STREAM,
@@ -61,16 +59,22 @@ int main()
     sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = htons(8011);
 
-    bind(
+    int bind_res = bind(
         master_socket,
         (struct sockaddr *) &sockaddr,
         sizeof sockaddr
     );
+    if (bind_res == -1) {
+        fprintf(stderr, "Ошибка привязки сокета");
+    }
 
-    listen(
+    int listen_res = listen(
         master_socket,
         MAX_CONNECTIONS
     );
+    if (listen_res == -1) {
+        fprintf(stderr, "Ошибка при попытке слушать сокет");
+    }
 
     epoll_fd = epoll_create1(0);
 
@@ -78,6 +82,38 @@ int main()
     master_event.data.fd = master_socket;
     master_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, master_socket, &master_event);
+}
+
+void addSlaveSocket(int slave_socket)
+{
+    struct epoll_event slave_event;
+    slave_event.data.fd = slave_socket;
+    slave_event.events = EPOLLIN;
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
+    slave_sockets.insert(slave_socket);
+}
+
+void removeSlaveSocket(int slave_socket)
+{
+    shutdown(slave_socket, SHUT_RDWR);
+    close(slave_socket);
+    slave_sockets.erase(slave_socket);
+}
+
+void sendMessageInChat(char *buffer)
+{
+    for (int slave_socket : slave_sockets)
+    {
+        send(slave_socket, buffer, BUFFER_LEN, 0);
+    }
+    
+    printf("%s\n", buffer);
+}
+
+int main()
+{
+    printfStatus("запуск сервера");
+    startServer();
 
     struct sigaction close_server_action;
     memset(&close_server_action, 0, sizeof(close_server_action));
@@ -89,39 +125,27 @@ int main()
     while (true)
     {
         struct epoll_event events[MAX_EPOOL_EVENTS];
-        int n = epoll_wait(epoll_fd, events, MAX_EPOOL_EVENTS, -1);
+        int events_num = epoll_wait(epoll_fd, events, MAX_EPOOL_EVENTS, -1);
 
-        for (int i = 0; i < n; i++) 
+        for (int i = 0; i < events_num; i++) 
         {
             if (events[i].data.fd == master_socket) {
-                printfStatus("accept");
-                int slave_socket = accept(master_socket, 0, 0);
-
-                struct epoll_event slave_event;
-                slave_event.data.fd = slave_socket;
-                slave_event.events = EPOLLIN;
-                epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
-                slave_sockets.insert(slave_socket);
-
+                addSlaveSocket(accept(master_socket, 0, 0));
                 continue;
             }
 
-            printfStatus("recv");
             int slave_socket = events[i].data.fd;
             char buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, buffer, BUFFER_LEN, 0);
 
             if (recv_res == 0) {
-                shutdown(slave_socket, SHUT_RDWR);
-                close(slave_socket);
-                slave_sockets.erase(slave_socket);
-            } else if (recv_res > 0) {
-                for (int slave_socket : slave_sockets)
-                {
-                    send(slave_socket, buffer, BUFFER_LEN, 0);
-                }
-                
-                printf("%s\n", buffer);
+                removeSlaveSocket(slave_socket);
+                continue;
+            } 
+            
+            if (recv_res > 0) {
+                sendMessageInChat(buffer);
+                continue;
             }
         }
     }
