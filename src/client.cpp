@@ -220,7 +220,6 @@ int main()
     struct sigaction close_client_action;
     memset(&close_client_action, 0, sizeof(close_client_action));
     close_client_action.sa_handler = closeClientHandler;
-
     sigaction(SIGTERM, &close_client_action, NULL);
     sigaction(SIGINT, &close_client_action, NULL);
 

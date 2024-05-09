@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <signal.h>
 
 #define MAX_CONNECTIONS 5
 #define BUFFER_LEN 256
@@ -23,9 +24,34 @@ void printfStatus(const char *status_text, ...)
     printf(buf, args);
 }
 
+int master_socket;
+std::set<int> slave_sockets;
+int epoll_fd;
+void closeServer()
+{
+    std::cout << "завершение работы сервера";
+    close(epoll_fd);
+
+    for (int slave_socket : slave_sockets) {
+        shutdown(slave_socket, SHUT_RDWR);
+        close(slave_socket);
+    }
+    shutdown(master_socket, SHUT_RDWR);
+    close(master_socket);
+
+    exit(EXIT_SUCCESS);
+}
+
+void closeServerHandler(int signum)
+{
+    closeServer();
+}
+
 int main()
 {
-    int master_socket = socket(
+    printfStatus("запуск сервера");
+
+    master_socket = socket(
         AF_INET,
         SOCK_STREAM,
         0
@@ -46,16 +72,20 @@ int main()
         MAX_CONNECTIONS
     );
 
-    std::set<int> slave_sockets;
-
-    int epoll_fd = epoll_create1(0);
+    epoll_fd = epoll_create1(0);
 
     struct epoll_event master_event;
     master_event.data.fd = master_socket;
     master_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, master_socket, &master_event);
 
-    printfStatus("start server");
+    struct sigaction close_server_action;
+    memset(&close_server_action, 0, sizeof(close_server_action));
+    close_server_action.sa_handler = closeServerHandler;
+    sigaction(SIGTERM, &close_server_action, NULL);
+    sigaction(SIGINT, &close_server_action, NULL);
+
+    printfStatus("сервер запущен");
     while (true)
     {
         struct epoll_event events[MAX_EPOOL_EVENTS];
@@ -96,8 +126,7 @@ int main()
         }
     }
 
-    shutdown(master_socket, SHUT_RDWR);
-    close(master_socket);
+    closeServer();
 
     return 0;
 }
