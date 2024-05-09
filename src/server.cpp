@@ -1,6 +1,6 @@
 #include <iostream>
 #include <unistd.h>
-#include <set>
+#include <map>
 #include <string.h>
 
 #include <sys/types.h>
@@ -12,6 +12,16 @@
 #define MAX_CONNECTIONS 5
 #define BUFFER_LEN 256
 #define MAX_EPOOL_EVENTS 32
+
+typedef int user_id_t;
+
+user_id_t last_user_id = 1;
+struct UserInfo
+{
+    in_addr ip_addr;
+    user_id_t id;
+    char name[30];
+};
 
 void printfStatus(const char *status_text, ...)
 {
@@ -25,14 +35,15 @@ void printfStatus(const char *status_text, ...)
 }
 
 int master_socket;
-std::set<int> slave_sockets;
+std::map<int, UserInfo> slave_sockets;
 int epoll_fd;
 void closeServer()
 {
     std::cout << "завершение работы сервера\n";
     close(epoll_fd);
 
-    for (int slave_socket : slave_sockets) {
+    for (std::pair<int, UserInfo> client_info : slave_sockets) {
+        int slave_socket = client_info.first;
         shutdown(slave_socket, SHUT_RDWR);
         close(slave_socket);
     }
@@ -65,7 +76,8 @@ void startServer()
         sizeof sockaddr
     );
     if (bind_res == -1) {
-        fprintf(stderr, "Ошибка привязки сокета");
+        fprintf(stderr, "Ошибка привязки сокета\n");
+        exit(EXIT_FAILURE);
     }
 
     int listen_res = listen(
@@ -73,7 +85,8 @@ void startServer()
         MAX_CONNECTIONS
     );
     if (listen_res == -1) {
-        fprintf(stderr, "Ошибка при попытке слушать сокет");
+        fprintf(stderr, "Ошибка при попытке слушать сокет\n");
+        exit(EXIT_FAILURE);
     }
 
     epoll_fd = epoll_create1(0);
@@ -84,13 +97,15 @@ void startServer()
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, master_socket, &master_event);
 }
 
-void addSlaveSocket(int slave_socket)
+void addSlaveSocket(int slave_socket, sockaddr_in client_addr)
 {
     struct epoll_event slave_event;
     slave_event.data.fd = slave_socket;
     slave_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
-    slave_sockets.insert(slave_socket);
+
+    UserInfo client_info {client_addr.sin_addr, last_user_id++, '\0'};
+    slave_sockets.insert({slave_socket, client_info});
 }
 
 void removeSlaveSocket(int slave_socket)
@@ -100,11 +115,16 @@ void removeSlaveSocket(int slave_socket)
     slave_sockets.erase(slave_socket);
 }
 
-void sendMessageInChat(char *buffer)
+void sendMessageInChat(char *buffer, user_id_t id)
 {
-    for (int slave_socket : slave_sockets)
+    char message[BUFFER_LEN + sizeof(user_id_t)] = {'\0'};
+    memcpy(message, {(char *) &id}, sizeof(user_id_t));
+    strcpy(message + sizeof(user_id_t), buffer);
+
+    int message_len = strlen(message);
+    for (std::pair<int, UserInfo> client_info : slave_sockets)
     {
-        send(slave_socket, buffer, BUFFER_LEN, 0);
+        send(client_info.first, message, message_len, 0);
     }
     
     printf("%s\n", buffer);
@@ -129,22 +149,26 @@ int main()
 
         for (int i = 0; i < events_num; i++) 
         {
-            if (events[i].data.fd == master_socket) {
-                addSlaveSocket(accept(master_socket, 0, 0));
+            if (events[i].data.fd == master_socket) { // пользователь подключился
+                sockaddr_in client_addr = {0};
+                socklen_t client_addr_size;
+                int slave_socket = accept(master_socket, (sockaddr *)&client_addr, &client_addr_size);
+
+                addSlaveSocket(slave_socket, client_addr);
                 continue;
             }
 
             int slave_socket = events[i].data.fd;
-            char buffer[BUFFER_LEN] = {0};
-            int recv_res = recv(slave_socket, buffer, BUFFER_LEN, 0);
+            char recv_buffer[BUFFER_LEN] = {0};
+            int recv_res = recv(slave_socket, recv_buffer, BUFFER_LEN, 0);
 
-            if (recv_res == 0) {
+            if (recv_res == 0) { // пользователь отключился
                 removeSlaveSocket(slave_socket);
                 continue;
             } 
             
-            if (recv_res > 0) {
-                sendMessageInChat(buffer);
+            if (recv_res > 0) { // сообщение от пользователя
+                sendMessageInChat(recv_buffer, slave_sockets[slave_socket].id);
                 continue;
             }
         }
