@@ -70,7 +70,7 @@ void closeMessagesScreen(int msg_scr_fd)
     unlink(FIFO_SCREEN_NAME);
 }
 
-void connectToSrver(int socket, sockaddr_in sockaddr)
+void connectToServer(int socket, sockaddr_in sockaddr)
 {
     while (true)
     {
@@ -86,23 +86,7 @@ void connectToSrver(int socket, sockaddr_in sockaddr)
             continue;
         } 
         
-        switch (errno)
-        {
-            case ENETUNREACH:
-                fprintf(stderr, "Нет сети\n");
-                break;
-
-            case ECONNREFUSED:
-                fprintf(stderr, "Нет сервера по указанному адресу\n");
-                break;
-
-            case ETIMEDOUT:
-                fprintf(stderr, "Время ожидания подключения к серверу вышло\n");
-                break;
-            
-            default:
-                fprintf(stderr, "Ошибка подключения к серверу\n");
-        }
+        fprintf(stderr, "Ошибка подключения к серверу: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 }
@@ -205,7 +189,7 @@ int main()
     sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     printfStatus("подключение к серверу");
-    connectToSrver(server_socket, sockaddr);
+    connectToServer(server_socket, sockaddr);
 
     printfStatus("открытие окна чата");
     int msg_scr_fd = openMessagesScreen();

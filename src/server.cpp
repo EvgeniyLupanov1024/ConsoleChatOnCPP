@@ -13,9 +13,9 @@
 #define BUFFER_LEN 256
 #define MAX_EPOOL_EVENTS 32
 
-typedef int user_id_t;
+typedef unsigned char user_id_t;
 
-user_id_t last_user_id = 1;
+user_id_t last_user_id = 10;
 struct UserInfo
 {
     in_addr ip_addr;
@@ -39,17 +39,17 @@ std::map<int, UserInfo> slave_sockets;
 int epoll_fd;
 void closeServer()
 {
-    std::cout << "завершение работы сервера\n";
-    close(epoll_fd);
+    printfStatus("завершение работы сервера");
+    shutdown(master_socket, SHUT_RDWR);
+    close(master_socket);
 
     for (std::pair<int, UserInfo> client_info : slave_sockets) {
         int slave_socket = client_info.first;
         shutdown(slave_socket, SHUT_RDWR);
         close(slave_socket);
     }
-    shutdown(master_socket, SHUT_RDWR);
-    close(master_socket);
 
+    close(epoll_fd);
     exit(EXIT_SUCCESS);
 }
 
@@ -69,6 +69,7 @@ void startServer()
     struct sockaddr_in sockaddr;
     sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = htons(8011);
+    sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     int bind_res = bind(
         master_socket,
@@ -76,7 +77,7 @@ void startServer()
         sizeof sockaddr
     );
     if (bind_res == -1) {
-        fprintf(stderr, "Ошибка привязки сокета\n");
+        fprintf(stderr, "Ошибка привязки сокета: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -85,7 +86,7 @@ void startServer()
         MAX_CONNECTIONS
     );
     if (listen_res == -1) {
-        fprintf(stderr, "Ошибка при попытке слушать сокет\n");
+        fprintf(stderr, "Ошибка при попытке слушать сокет: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -117,8 +118,8 @@ void removeSlaveSocket(int slave_socket)
 
 void sendMessageInChat(char *buffer, user_id_t id)
 {
-    char message[BUFFER_LEN + sizeof(user_id_t)] = {'\0'};
-    memcpy(message, {(char *) &id}, sizeof(user_id_t));
+    char message[sizeof(user_id_t) + BUFFER_LEN] = {'\0'};
+    memcpy(message, &id, sizeof(user_id_t));
     strcpy(message + sizeof(user_id_t), buffer);
 
     int message_len = strlen(message);
@@ -126,8 +127,9 @@ void sendMessageInChat(char *buffer, user_id_t id)
     {
         send(client_info.first, message, message_len, 0);
     }
-    
-    printf("%s\n", buffer);
+
+    printf("Как id: %d\n", *message);
+    printf("Как собщение: %s\n", message + sizeof(user_id_t));
 }
 
 int main()

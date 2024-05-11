@@ -9,6 +9,8 @@
 #define BUFFER_LEN 256
 #define FIFO_SCREEN_NAME "fifo_client_msg"
 
+typedef unsigned char user_id_t;
+
 int get_msg_fd;
 void closeMessageScreen()
 {
@@ -43,16 +45,15 @@ int main(int argc, char **argv)
     sigaction(SIGTERM, &close_message_screen_action, NULL);
     sigaction(SIGINT, &close_message_screen_action, NULL);
 
-    char read_buffer[BUFFER_LEN] = {0};
-    int read_res;
     while(true)
     {
-        read_res = read(get_msg_fd, read_buffer, BUFFER_LEN);
+        char read_buffer[sizeof(user_id_t) + BUFFER_LEN] = {0};
+        int read_res = read(get_msg_fd, read_buffer, sizeof(user_id_t) + BUFFER_LEN);
         if (read_res == 0) {
             closeMessageScreen();
         }
 
-        std::cout << read_buffer << std::endl;
+        std::cout << read_buffer + sizeof(user_id_t) << std::endl;
     }
 
     return 0;
