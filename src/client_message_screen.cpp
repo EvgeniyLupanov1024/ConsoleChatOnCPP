@@ -6,6 +6,8 @@
 #include <string.h>
 #include <iostream>
 
+#include <map>
+
 #define BUFFER_LEN 256
 #define FIFO_SCREEN_NAME "fifo_client_msg"
 
@@ -22,6 +24,23 @@ void closeMessageScreenHandler(int signum)
 {
     closeMessageScreen();
 } 
+
+std::map<user_id_t, std::string> members;
+void printMessage(user_id_t id, char *message)
+{
+    std::cout << '[' << members[id] << "] " << message << std::endl;
+}
+
+void addMember(user_id_t id, char *name)
+{
+    members.insert({id, std::string(name)});
+}
+
+void removeMember(user_id_t id)
+{
+    delete &members[id];
+    members.erase(id);
+}
 
 int main(int argc, char **argv)
 {
@@ -53,7 +72,22 @@ int main(int argc, char **argv)
             closeMessageScreen();
         }
 
-        std::cout << read_buffer + sizeof(user_id_t) << std::endl;
+        user_id_t id = *read_buffer;
+        char *message = read_buffer + sizeof(user_id_t);
+
+        if (members.find(id) == members.end()) {
+            addMember(id, message);
+            std::cout << "Пользователь \"" << message << "\" вошёл в чат" << std::endl;
+            continue;
+        }
+
+        if (strcmp(message, "exit") == 0) {
+            std::cout << "Пользователь \"" << members[id] << "\" вышёл из чата" << std::endl;
+            removeMember(id);
+            continue;
+        }
+
+        printMessage(id, message);
     }
 
     return 0;

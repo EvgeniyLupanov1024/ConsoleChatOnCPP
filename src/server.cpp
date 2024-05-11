@@ -12,10 +12,11 @@
 #define MAX_CONNECTIONS 5
 #define BUFFER_LEN 256
 #define MAX_EPOOL_EVENTS 32
+#define MEMBER_NAME_MAX_LEN 25
 
 typedef unsigned char user_id_t;
 
-user_id_t last_user_id = 10;
+user_id_t last_user_id = 0x10;
 struct UserInfo
 {
     in_addr ip_addr;
