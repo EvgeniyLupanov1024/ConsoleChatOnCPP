@@ -196,6 +196,7 @@ int main()
     ListenServerArgs listen_server_args = {server_socket, msg_scr_fd};
     std::thread listen_server_thread(listenServer, &listen_server_args);
 
+    std::cout << "Введите имя: ";
     WriteToServerArgs write_to_server_args = {server_socket};
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
     write_to_server_thread.detach();
