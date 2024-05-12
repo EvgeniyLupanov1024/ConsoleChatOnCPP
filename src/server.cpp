@@ -117,16 +117,38 @@ void removeSlaveSocket(int slave_socket)
     slave_sockets.erase(slave_socket);
 }
 
-void sendMessageInChat(char *buffer, user_id_t id)
+void sendMessageInChat(const char *buffer, user_id_t id)
 {
     char message[sizeof(user_id_t) + BUFFER_LEN] = {'\0'};
     memcpy(message, &id, sizeof(user_id_t));
     strcpy(message + sizeof(user_id_t), buffer);
 
     int message_len = strlen(message);
-    for (std::pair<int, UserInfo> client_info : slave_sockets)
+    for (std::pair<int, UserInfo> user_info : slave_sockets)
     {
-        send(client_info.first, message, message_len, 0);
+        send(user_info.first, message, message_len, 0);
+    }
+}
+
+void sendMessageToUser(int user_socket, const char *buffer, user_id_t from_id)
+{
+    char message[sizeof(user_id_t) + BUFFER_LEN] = {'\0'};
+    memcpy(message, &from_id, sizeof(user_id_t));
+    strcpy(message + sizeof(user_id_t), buffer);
+
+    int message_len = strlen(message);
+    send(user_socket, message, message_len, 0);
+}
+
+void sendMembersToNewUser(int user_socket)
+{
+    for (std::pair<int, UserInfo> user_info : slave_sockets)
+    {
+        if (user_info.second.name == "") {
+            continue;
+        }
+
+        sendMessageToUser(user_socket, user_info.second.name.c_str(), user_info.second.id);
     }
 }
 
@@ -154,6 +176,7 @@ int main()
                 int slave_socket = accept(master_socket, (sockaddr *)&client_addr, &client_addr_size);
 
                 addSlaveSocket(slave_socket, client_addr);
+                sendMembersToNewUser(slave_socket);
                 continue;
             }
 

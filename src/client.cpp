@@ -33,7 +33,6 @@ int openMessagesScreen()
     char fifo_path[256];
     sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, getpid());
 
-    unlink(fifo_path);
     if (mkfifo(fifo_path, 0666) == -1) {
         fprintf(stderr, "Невозможно создать fifo канал: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
