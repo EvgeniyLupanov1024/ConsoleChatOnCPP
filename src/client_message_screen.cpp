@@ -38,7 +38,6 @@ void addMember(user_id_t id, char *name)
 
 void removeMember(user_id_t id)
 {
-    delete &members[id];
     members.erase(id);
 }
 

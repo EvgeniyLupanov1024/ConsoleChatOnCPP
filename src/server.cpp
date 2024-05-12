@@ -113,7 +113,6 @@ void removeSlaveSocket(int slave_socket)
 {
     shutdown(slave_socket, SHUT_RDWR);
     close(slave_socket);
-    delete &slave_sockets[slave_socket].name;
     slave_sockets.erase(slave_socket);
 }
 
@@ -185,6 +184,7 @@ int main()
             int recv_res = recv(slave_socket, recv_buffer, BUFFER_LEN, 0);
 
             if (recv_res == 0) { // пользователь отключился
+                sendMessageInChat("exit", slave_sockets[slave_socket].id);
                 removeSlaveSocket(slave_socket);
                 continue;
             } 
