@@ -9,7 +9,7 @@
 #include <map>
 
 #define BUFFER_LEN 256
-#define FIFO_SCREEN_NAME "fifo_client_msg"
+#define FIFO_SCREEN_NAME "fifo_message_screen"
 
 typedef unsigned char user_id_t;
 
@@ -52,9 +52,11 @@ int main(int argc, char **argv)
     int client_pid = atoi(argv[1]);
     kill(client_pid, SIGUSR1);
 
-    get_msg_fd = open(FIFO_SCREEN_NAME, O_RDWR);
+    char fifo_path[256];
+    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, client_pid);
+    get_msg_fd = open(fifo_path, O_RDWR);
     if (get_msg_fd == -1) {
-        fprintf(stderr, "Невозможно открыть fifo канал");
+        fprintf(stderr, "Невозможно открыть fifo канал: %s\n", strerror(errno));
         pause();
     }
 

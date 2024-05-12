@@ -13,7 +13,7 @@
 #include <thread>
 
 #define BUFFER_LEN 256
-#define FIFO_SCREEN_NAME "fifo_client_msg"
+#define FIFO_SCREEN_NAME "fifo_message_screen"
 #define APP_SCREEN_NAME "client_message_screen"
 
 bool close_client = false;
@@ -30,15 +30,18 @@ void setMessageScreenPid(int signum, siginfo_t *siginfo, void *ptr)
 
 int openMessagesScreen()
 {
-    unlink(FIFO_SCREEN_NAME);
-    if (mkfifo(FIFO_SCREEN_NAME, 0666) == -1) {
-        fprintf(stderr, "Невозможно создать fifo\n");
+    char fifo_path[256];
+    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, getpid());
+
+    unlink(fifo_path);
+    if (mkfifo(fifo_path, 0666) == -1) {
+        fprintf(stderr, "Невозможно создать fifo канал: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
-    int msg_scr_fd = open(FIFO_SCREEN_NAME, O_RDWR);
+    int msg_scr_fd = open(fifo_path, O_RDWR);
     if(msg_scr_fd == -1) {
-        fprintf(stderr, "Невозможно открыть fifo\n");
+        fprintf(stderr, "Невозможно открыть fifo канал: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
