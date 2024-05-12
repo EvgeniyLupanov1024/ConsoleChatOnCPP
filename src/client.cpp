@@ -42,8 +42,7 @@ int openMessagesScreen()
         exit(EXIT_FAILURE);
     }
 
-    struct sigaction set_message_screen_pid_action;
-    memset(&set_message_screen_pid_action, 0, sizeof(set_message_screen_pid_action));
+    struct sigaction set_message_screen_pid_action = {0};
     set_message_screen_pid_action.sa_sigaction = setMessageScreenPid;
     set_message_screen_pid_action.sa_flags = SA_RESTART | SA_SIGINFO;
     sigaction(SIGUSR1, &set_message_screen_pid_action, NULL);
@@ -201,8 +200,7 @@ int main()
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
     write_to_server_thread.detach();
 
-    struct sigaction close_client_action;
-    memset(&close_client_action, 0, sizeof(close_client_action));
+    struct sigaction close_client_action = {0};
     close_client_action.sa_handler = closeClientHandler;
     sigaction(SIGTERM, &close_client_action, NULL);
     sigaction(SIGINT, &close_client_action, NULL);

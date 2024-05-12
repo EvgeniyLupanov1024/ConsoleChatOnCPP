@@ -58,8 +58,7 @@ int main(int argc, char **argv)
         pause();
     }
 
-    struct sigaction close_message_screen_action;
-    memset(&close_message_screen_action, 0, sizeof(close_message_screen_action));    
+    struct sigaction close_message_screen_action = {0};
     close_message_screen_action.sa_handler = closeMessageScreenHandler;
     sigaction(SIGTERM, &close_message_screen_action, NULL);
     sigaction(SIGINT, &close_message_screen_action, NULL);

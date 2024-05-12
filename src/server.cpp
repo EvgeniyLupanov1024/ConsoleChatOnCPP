@@ -19,9 +19,9 @@ typedef unsigned char user_id_t;
 user_id_t last_user_id = 0x10;
 struct UserInfo
 {
-    in_addr ip_addr;
+    in_addr_t ip;
     user_id_t id;
-    char name[30];
+    std::string name;
 };
 
 void printfStatus(const char *status_text, ...)
@@ -106,7 +106,7 @@ void addSlaveSocket(int slave_socket, sockaddr_in client_addr)
     slave_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
 
-    UserInfo client_info {client_addr.sin_addr, last_user_id++, '\0'};
+    UserInfo client_info {client_addr.sin_addr.s_addr, last_user_id++, ""};
     slave_sockets.insert({slave_socket, client_info});
 }
 
@@ -114,6 +114,7 @@ void removeSlaveSocket(int slave_socket)
 {
     shutdown(slave_socket, SHUT_RDWR);
     close(slave_socket);
+    delete &slave_sockets[slave_socket].name;
     slave_sockets.erase(slave_socket);
 }
 
@@ -128,9 +129,6 @@ void sendMessageInChat(char *buffer, user_id_t id)
     {
         send(client_info.first, message, message_len, 0);
     }
-
-    printf("Как id: %d\n", *message);
-    printf("Как собщение: %s\n", message + sizeof(user_id_t));
 }
 
 int main()
@@ -138,8 +136,7 @@ int main()
     printfStatus("запуск сервера");
     startServer();
 
-    struct sigaction close_server_action;
-    memset(&close_server_action, 0, sizeof(close_server_action));
+    struct sigaction close_server_action = {0};
     close_server_action.sa_handler = closeServerHandler;
     sigaction(SIGTERM, &close_server_action, NULL);
     sigaction(SIGINT, &close_server_action, NULL);
@@ -171,6 +168,10 @@ int main()
             } 
             
             if (recv_res > 0) { // сообщение от пользователя
+                if (slave_sockets[slave_socket].name == "") {
+                    slave_sockets[slave_socket].name = recv_buffer;
+                }
+
                 sendMessageInChat(recv_buffer, slave_sockets[slave_socket].id);
                 continue;
             }
