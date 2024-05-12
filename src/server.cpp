@@ -9,19 +9,25 @@
 #include <sys/epoll.h>
 #include <signal.h>
 
+#include "logger.hpp"
+
 #define MAX_CONNECTIONS 5
 #define BUFFER_LEN 256
 #define MAX_EPOOL_EVENTS 32
 
 typedef unsigned char user_id_t;
 
-user_id_t last_user_id = 0x10;
 struct UserInfo
 {
     in_addr_t ip;
     user_id_t id;
     std::string name;
 };
+int master_socket;
+std::map<int, UserInfo> slave_sockets;
+int epoll_fd;
+user_id_t last_user_id = 0x10;
+Logger logger("log.txt");
 
 void printfStatus(const char *status_text, ...)
 {
@@ -34,9 +40,6 @@ void printfStatus(const char *status_text, ...)
     printf(buf, args);
 }
 
-int master_socket;
-std::map<int, UserInfo> slave_sockets;
-int epoll_fd;
 void closeServer()
 {
     printfStatus("завершение работы сервера");
@@ -169,13 +172,15 @@ int main()
 
         for (int i = 0; i < events_num; i++) 
         {
-            if (events[i].data.fd == master_socket) { // пользователь подключился
+            if (events[i].data.fd == master_socket) {
+                logger.writeLog("Connect11");
+
                 sockaddr_in client_addr = {0};
                 socklen_t client_addr_size;
                 int slave_socket = accept(master_socket, (sockaddr *)&client_addr, &client_addr_size);
 
-                addSlaveSocket(slave_socket, client_addr);
                 sendMembersToNewUser(slave_socket);
+                addSlaveSocket(slave_socket, client_addr);
                 continue;
             }
 
@@ -183,13 +188,17 @@ int main()
             char recv_buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, recv_buffer, BUFFER_LEN, 0);
 
-            if (recv_res == 0) { // пользователь отключился
+            if (recv_res == 0) {
+                logger.writeLog("Disconnect22");
+
                 sendMessageInChat("exit", slave_sockets[slave_socket].id);
                 removeSlaveSocket(slave_socket);
                 continue;
             } 
             
-            if (recv_res > 0) { // сообщение от пользователя
+            if (recv_res > 0) {
+                logger.writeLog("Message33");
+
                 if (slave_sockets[slave_socket].name == "") {
                     slave_sockets[slave_socket].name = recv_buffer;
                 }

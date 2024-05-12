@@ -68,7 +68,10 @@ void closeMessagesScreen(int msg_scr_fd)
     kill(message_screen_pid, SIGTERM);
 
     close(msg_scr_fd);
-    unlink(FIFO_SCREEN_NAME);
+
+    char fifo_path[256];
+    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, getpid());
+    unlink(fifo_path);
 }
 
 void connectToServer(int socket, sockaddr_in sockaddr)
