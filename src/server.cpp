@@ -1,13 +1,14 @@
-#include <iostream>
 #include <unistd.h>
-#include <map>
+#include <signal.h>
 #include <string.h>
+
+#include <iostream>
+#include <map>
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <sys/epoll.h>
-#include <signal.h>
+#include <netinet/in.h>
 
 #include "logger.hpp"
 
@@ -31,13 +32,20 @@ Logger logger("log.txt");
 
 void printfStatus(const char *status_text, ...)
 {
-    char buf[256];
-    strcpy(buf, "-- ");
-    strcat(buf, status_text);
-    strcat(buf, "...\n");
+    std::ostringstream buffer;
+    buffer << "-- " << status_text << "...\n";
+    std::string status_line = buffer.str();
+    
     va_list args;
+    printf(status_line.c_str(), args);
+}
 
-    printf(buf, args);
+const char *addUserInfo(int slave_socket, const char *text)
+{
+    std::ostringstream buffer;
+    // buffer << "[" << slave_sockets[slave_socket].id << "] " << text;
+    buffer << text;
+    return buffer.str().c_str();
 }
 
 void closeServer()
@@ -172,15 +180,15 @@ int main()
 
         for (int i = 0; i < events_num; i++) 
         {
-            if (events[i].data.fd == master_socket) {
-                logger.writeLog("Connect11");
-
+            if (events[i].data.fd == master_socket) { // пользователь подключился
                 sockaddr_in client_addr = {0};
                 socklen_t client_addr_size;
                 int slave_socket = accept(master_socket, (sockaddr *)&client_addr, &client_addr_size);
 
                 sendMembersToNewUser(slave_socket);
                 addSlaveSocket(slave_socket, client_addr);
+
+                logger.writeLog(addUserInfo(slave_socket, "connect!"));
                 continue;
             }
 
@@ -188,16 +196,16 @@ int main()
             char recv_buffer[BUFFER_LEN] = {0};
             int recv_res = recv(slave_socket, recv_buffer, BUFFER_LEN, 0);
 
-            if (recv_res == 0) {
-                logger.writeLog("Disconnect22");
+            if (recv_res == 0) { // пользователь отключился
+                logger.writeLog(addUserInfo(slave_socket, "disconnect"));
 
                 sendMessageInChat("exit", slave_sockets[slave_socket].id);
                 removeSlaveSocket(slave_socket);
                 continue;
             } 
             
-            if (recv_res > 0) {
-                logger.writeLog("Message33");
+            if (recv_res > 0) { // сообщение от пользователя
+                logger.writeLog(addUserInfo(slave_socket, recv_buffer));
 
                 if (slave_sockets[slave_socket].name == "") {
                     slave_sockets[slave_socket].name = recv_buffer;

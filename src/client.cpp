@@ -1,16 +1,18 @@
-#include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
-#include <cstring>
 #include <stdarg.h>
+#include <signal.h>
+
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <sstream>
+#include <thread>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <signal.h>
 #include <netinet/in.h>
-
-#include <thread>
 
 #define BUFFER_LEN 256
 #define FIFO_SCREEN_NAME "fifo_message_screen"
@@ -170,13 +172,12 @@ void * writeToServer(void *args)
 
 void printfStatus(const char *status_text, ...)
 {
-    char buf[256];
-    strcpy(buf, "-- ");
-    strcat(buf, status_text);
-    strcat(buf, "...\n");
+    std::ostringstream buffer;
+    buffer << "-- " << status_text << "...\n";
+    std::string status_line = buffer.str();
+    
     va_list args;
-
-    printf(buf, args);
+    printf(status_line.c_str(), args);
 }
 
 int main()
