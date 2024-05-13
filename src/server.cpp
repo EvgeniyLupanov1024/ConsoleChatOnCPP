@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "logger.hpp"
 
@@ -20,7 +21,7 @@ typedef unsigned char user_id_t;
 
 struct UserInfo
 {
-    in_addr_t ip;
+    in_addr addr;
     user_id_t id;
     std::string name;
 };
@@ -40,12 +41,15 @@ void printfStatus(const char *status_text, ...)
     printf(status_line.c_str(), args);
 }
 
-const char *addUserInfo(int slave_socket, const char *text)
+void logWithUserInfo(int slave_socket, const char *text)
 {
     std::ostringstream buffer;
-    // buffer << "[" << slave_sockets[slave_socket].id << "] " << text;
-    buffer << text;
-    return buffer.str().c_str();
+    buffer << "[" << inet_ntoa(slave_sockets[slave_socket].addr) << "]";
+    buffer << "[" << static_cast<unsigned int>(slave_sockets[slave_socket].id) << "]";
+    buffer << " " << text;
+    std::string text_concatenate_user_info = buffer.str();
+
+    logger.writeLog(text_concatenate_user_info.c_str());
 }
 
 void closeServer()
@@ -116,7 +120,7 @@ void addSlaveSocket(int slave_socket, sockaddr_in client_addr)
     slave_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
 
-    UserInfo client_info {client_addr.sin_addr.s_addr, last_user_id++, ""};
+    UserInfo client_info {client_addr.sin_addr, last_user_id++, ""};
     slave_sockets.insert({slave_socket, client_info});
 }
 
@@ -188,7 +192,7 @@ int main()
                 sendMembersToNewUser(slave_socket);
                 addSlaveSocket(slave_socket, client_addr);
 
-                logger.writeLog(addUserInfo(slave_socket, "connect!"));
+                logWithUserInfo(slave_socket, "connect!");
                 continue;
             }
 
@@ -197,7 +201,7 @@ int main()
             int recv_res = recv(slave_socket, recv_buffer, BUFFER_LEN, 0);
 
             if (recv_res == 0) { // пользователь отключился
-                logger.writeLog(addUserInfo(slave_socket, "disconnect"));
+                logWithUserInfo(slave_socket, "disconnect");
 
                 sendMessageInChat("exit", slave_sockets[slave_socket].id);
                 removeSlaveSocket(slave_socket);
@@ -205,7 +209,7 @@ int main()
             } 
             
             if (recv_res > 0) { // сообщение от пользователя
-                logger.writeLog(addUserInfo(slave_socket, recv_buffer));
+                logWithUserInfo(slave_socket, recv_buffer);
 
                 if (slave_sockets[slave_socket].name == "") {
                     slave_sockets[slave_socket].name = recv_buffer;
