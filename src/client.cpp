@@ -14,9 +14,13 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 
+#include "fifo_channel.hpp"
+
 #define BUFFER_LEN 256
-#define FIFO_SCREEN_NAME "fifo_message_screen"
+#define FIFO_SCREEN_PATH "./tmp/fifo_message_screen"
 #define APP_SCREEN_NAME "client_message_screen"
+
+FifoChannel *message_screen_channel;
 
 bool close_client = false;
 void closeClientHandler(int signum) 
@@ -30,21 +34,9 @@ void setMessageScreenPid(int signum, siginfo_t *siginfo, void *ptr)
     message_screen_pid = siginfo->si_pid;
 }
 
-int openMessagesScreen()
+void openMessagesScreen()
 {
-    char fifo_path[256];
-    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, getpid());
-
-    if (mkfifo(fifo_path, 0666) == -1) {
-        fprintf(stderr, "Невозможно создать fifo канал: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    int msg_scr_fd = open(fifo_path, O_RDWR);
-    if(msg_scr_fd == -1) {
-        fprintf(stderr, "Невозможно открыть fifo канал: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    message_screen_channel = new FifoChannel(FIFO_SCREEN_PATH, getpid());
 
     struct sigaction set_message_screen_pid_action = {0};
     set_message_screen_pid_action.sa_sigaction = setMessageScreenPid;
@@ -58,22 +50,16 @@ int openMessagesScreen()
     {
         pause();
     }
-
-    return msg_scr_fd;
 }
 
-void closeMessagesScreen(int msg_scr_fd)
+void closeMessagesScreen()
 {
     if (message_screen_pid == 0) {
         std::cerr << "Неверный pid процесса message screen\n";
     }
     kill(message_screen_pid, SIGTERM);
 
-    close(msg_scr_fd);
-
-    char fifo_path[256];
-    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, getpid());
-    unlink(fifo_path);
+    delete message_screen_channel;
 }
 
 void connectToServer(int socket, sockaddr_in sockaddr)
@@ -100,13 +86,11 @@ void connectToServer(int socket, sockaddr_in sockaddr)
 struct ListenServerArgs
 {
     int socket;
-    int msg_scr_fd;
 };
 
 void * listenServer(void *args)
 {
     int socket = ((ListenServerArgs *) args)->socket;
-    int msg_scr_fd = ((ListenServerArgs *) args)->msg_scr_fd;
 
     char recv_buffer[BUFFER_LEN] = {0};
     while(true)
@@ -128,7 +112,7 @@ void * listenServer(void *args)
             break;
         }
 
-        write(msg_scr_fd, recv_buffer, recv_res);
+        message_screen_channel->writeIn(recv_buffer, recv_res);
     }
 
     return NULL;
@@ -197,9 +181,9 @@ int main()
     connectToServer(server_socket, sockaddr);
 
     printfStatus("открытие окна чата");
-    int msg_scr_fd = openMessagesScreen();
+    openMessagesScreen();
 
-    ListenServerArgs listen_server_args = {server_socket, msg_scr_fd};
+    ListenServerArgs listen_server_args = {server_socket};
     std::thread listen_server_thread(listenServer, &listen_server_args);
 
     std::cout << "Введите имя: ";
@@ -223,9 +207,8 @@ int main()
     printfStatus("закрытие клиента");
     shutdown(server_socket, SHUT_RDWR);
     close(server_socket);
-
     listen_server_thread.join();
-    closeMessagesScreen(msg_scr_fd);
+    closeMessagesScreen();
 
     return 0;
 }

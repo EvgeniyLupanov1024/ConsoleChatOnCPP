@@ -6,12 +6,14 @@ add_compile_options(
     -Wall
 )
 
+find_package(Threads REQUIRED)
+add_library(logger src/logger.hpp src/logger.cpp)
+add_library(fifo_channel src/fifo_channel.hpp src/fifo_channel.cpp)
+
 add_executable(server src/server.cpp)
 add_executable(client src/client.cpp)
 add_executable(client_message_screen src/client_message_screen.cpp)
 
-add_library(logger src/logger.hpp src/logger.cpp)
 target_link_libraries(server PRIVATE logger)
-
-find_package(Threads REQUIRED)
-target_link_libraries(client PRIVATE Threads::Threads)
+target_link_libraries(client PRIVATE fifo_channel Threads::Threads)
+target_link_libraries(client_message_screen PRIVATE fifo_channel)

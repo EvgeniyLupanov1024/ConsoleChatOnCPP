@@ -4,19 +4,22 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include <iostream>
 
 #include <map>
+#include <iostream>
+
+#include "fifo_channel.hpp"
 
 #define BUFFER_LEN 256
-#define FIFO_SCREEN_NAME "fifo_message_screen"
+#define FIFO_SCREEN_PATH "./tmp/fifo_message_screen"
 
 typedef unsigned char user_id_t;
 
-int get_msg_fd;
+FifoChannel *get_message_channel;
+
 void closeMessageScreen()
 {
-    close(get_msg_fd);
+    delete get_message_channel;
     exit(EXIT_SUCCESS);
 }
 
@@ -51,14 +54,8 @@ int main(int argc, char **argv)
     int client_pid = atoi(argv[1]);
     kill(client_pid, SIGUSR1);
 
-    char fifo_path[256];
-    sprintf(fifo_path, "./tmp/%s%d", FIFO_SCREEN_NAME, client_pid);
-    get_msg_fd = open(fifo_path, O_RDWR);
-    if (get_msg_fd == -1) {
-        fprintf(stderr, "Невозможно открыть fifo канал: %s\n", strerror(errno));
-        pause();
-    }
-
+    get_message_channel = new FifoChannel(FIFO_SCREEN_PATH, client_pid);
+    
     struct sigaction close_message_screen_action = {0};
     close_message_screen_action.sa_handler = closeMessageScreenHandler;
     sigaction(SIGTERM, &close_message_screen_action, NULL);
@@ -67,10 +64,7 @@ int main(int argc, char **argv)
     while(true)
     {
         char read_buffer[sizeof(user_id_t) + BUFFER_LEN] = {0};
-        int read_res = read(get_msg_fd, read_buffer, sizeof(user_id_t) + BUFFER_LEN);
-        if (read_res == 0) {
-            closeMessageScreen();
-        }
+        get_message_channel->readFrom(read_buffer, sizeof(user_id_t) + BUFFER_LEN);
 
         user_id_t id = *read_buffer;
         char *message = read_buffer + sizeof(user_id_t);
