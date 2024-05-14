@@ -12,12 +12,7 @@
 #include <arpa/inet.h>
 
 #include "logger.hpp"
-
-#define MAX_CONNECTIONS 5
-#define BUFFER_LEN 256
-#define MAX_EPOOL_EVENTS 32
-
-typedef unsigned char user_id_t;
+#include "consts.hpp"
 
 struct UserInfo
 {
@@ -28,7 +23,7 @@ struct UserInfo
 int master_socket;
 std::map<int, UserInfo> slave_sockets;
 int epoll_fd;
-user_id_t last_user_id = 0x10;
+user_id_t last_user_id = 0;
 Logger logger("log.txt");
 
 void printfStatus(const char *status_text, ...)

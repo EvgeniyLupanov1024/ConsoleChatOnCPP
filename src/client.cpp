@@ -15,10 +15,7 @@
 #include <netinet/in.h>
 
 #include "fifo_channel.hpp"
-
-#define BUFFER_LEN 256
-#define FIFO_SCREEN_PATH "./tmp/fifo_message_screen"
-#define APP_SCREEN_NAME "client_message_screen"
+#include "consts.hpp"
 
 FifoChannel *message_screen_channel;
 

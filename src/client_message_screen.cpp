@@ -9,11 +9,7 @@
 #include <iostream>
 
 #include "fifo_channel.hpp"
-
-#define BUFFER_LEN 256
-#define FIFO_SCREEN_PATH "./tmp/fifo_message_screen"
-
-typedef unsigned char user_id_t;
+#include "consts.hpp"
 
 FifoChannel *get_message_channel;
 
