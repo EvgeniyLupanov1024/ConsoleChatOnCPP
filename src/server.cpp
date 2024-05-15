@@ -25,7 +25,7 @@ struct UserInfo
 int master_socket;
 std::map<int, UserInfo> slave_sockets;
 int epoll_fd;
-user_id_t last_user_id = 0;
+user_id_t last_user_id = 1;
 Logger logger("log.txt");
 
 void logWithUserInfo(int slave_socket, const char *text)
@@ -109,7 +109,10 @@ void addSlaveSocket(int slave_socket, sockaddr_in client_addr)
     slave_event.events = EPOLLIN;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, slave_socket, &slave_event);
 
-    UserInfo client_info {client_addr.sin_addr, last_user_id++, ""};
+    if (last_user_id++ == 0) {
+        last_user_id = 1;
+    }
+    UserInfo client_info {client_addr.sin_addr, last_user_id, ""};
     slave_sockets.insert({slave_socket, client_info});
 }
 
