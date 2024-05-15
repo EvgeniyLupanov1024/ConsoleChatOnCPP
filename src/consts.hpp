@@ -1,3 +1,5 @@
+#pragma once
+
 #define BUFFER_LEN 256
 #define FIFO_SCREEN_PATH "./tmp/fifo_message_screen"
 #define APP_SCREEN_NAME "client_message_screen"

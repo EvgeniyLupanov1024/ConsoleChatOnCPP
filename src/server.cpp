@@ -14,6 +14,7 @@
 
 #include "logger.hpp"
 #include "consts.hpp"
+#include "printer.hpp"
 
 struct UserInfo
 {
@@ -26,18 +27,6 @@ std::map<int, UserInfo> slave_sockets;
 int epoll_fd;
 user_id_t last_user_id = 0;
 Logger logger("log.txt");
-
-void printfStatus(const char *status_text, ...)
-{
-    std::ostringstream buffer;
-    buffer << "-- " << status_text << "...\n";
-    std::string status_line = buffer.str();
-    
-    va_list args;
-    va_start(args, status_line);
-    vprintf(status_line.c_str(), args);
-    va_end(args);
-}
 
 void logWithUserInfo(int slave_socket, const char *text)
 {

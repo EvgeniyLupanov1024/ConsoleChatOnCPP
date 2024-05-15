@@ -17,6 +17,7 @@
 
 #include "fifo_channel.hpp"
 #include "consts.hpp"
+#include "printer.hpp"
 
 FifoChannel *message_screen_channel;
 
@@ -168,18 +169,6 @@ void * writeToServer(void *args)
     } 
 
     return NULL;
-}
-
-void printfStatus(const char *status_text, ...)
-{
-    std::ostringstream buffer;
-    buffer << "-- " << status_text << "...\n";
-    std::string status_line = buffer.str();
-    
-    va_list args;
-    va_start(args, status_line);
-    vprintf(status_line.c_str(), args);
-    va_end(args);
 }
 
 int main()
