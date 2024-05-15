@@ -42,6 +42,8 @@ void logWithUserInfo(int slave_socket, const char *text)
 void closeServer()
 {
     printfStatus("завершение работы сервера");
+    logger.writeLog("server is closed");
+
     shutdown(master_socket, SHUT_RDWR);
     close(master_socket);
 
@@ -156,6 +158,7 @@ void sendMembersToNewUser(int user_socket)
 int main()
 {
     printfStatus("запуск сервера");
+    logger.writeLog("starting server");
     startServer();
 
     struct sigaction close_server_action = {0};

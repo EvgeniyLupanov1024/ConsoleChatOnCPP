@@ -28,7 +28,7 @@ void closeClientHandler(int signum)
 }
 
 pid_t message_screen_pid = -1;
-void setMessageScreenPid(int signum, siginfo_t *siginfo, void *ptr)  
+void setMessageScreenPidHandler(int signum, siginfo_t *siginfo, void *ptr)  
 {
     message_screen_pid = siginfo->si_pid;
 }
@@ -38,7 +38,7 @@ void openMessagesScreen()
     message_screen_channel = new FifoChannel(FIFO_SCREEN_PATH, getpid());
 
     struct sigaction set_message_screen_pid_action = {0};
-    set_message_screen_pid_action.sa_sigaction = setMessageScreenPid;
+    set_message_screen_pid_action.sa_sigaction = setMessageScreenPidHandler;
     set_message_screen_pid_action.sa_flags = SA_RESTART | SA_SIGINFO;
     sigaction(SIGUSR1, &set_message_screen_pid_action, NULL);
 
