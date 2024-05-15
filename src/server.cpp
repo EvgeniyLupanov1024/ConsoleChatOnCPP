@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <iostream>
 #include <map>
@@ -33,7 +34,9 @@ void printfStatus(const char *status_text, ...)
     std::string status_line = buffer.str();
     
     va_list args;
-    printf(status_line.c_str(), args);
+    va_start(args, status_line);
+    vprintf(status_line.c_str(), args);
+    va_end(args);
 }
 
 void logWithUserInfo(int slave_socket, const char *text)

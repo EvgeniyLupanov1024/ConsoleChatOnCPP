@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "fifo_channel.hpp"
 #include "consts.hpp"
@@ -57,6 +58,20 @@ void closeMessagesScreen()
     kill(message_screen_pid, SIGTERM);
 
     delete message_screen_channel;
+}
+
+sockaddr_in enterServerAddress()
+{
+    sockaddr_in sockaddr;
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_port = htons(8011);
+
+    std::cout << "Введите адрес сервера: ";
+    char server_address[15];
+    scanf("%s", server_address);
+    inet_pton(AF_INET, server_address, &sockaddr.sin_addr);
+
+    return sockaddr;
 }
 
 void connectToServer(int socket, sockaddr_in sockaddr)
@@ -124,12 +139,16 @@ void * writeToServer(void *args)
 {
     int socket = ((WriteToServerArgs *) args)->socket;
 
+    std::cout << "Введите имя: ";
     char send_buffer[BUFFER_LEN] = {0};
     while(true)
     {
         fgets(send_buffer, BUFFER_LEN, stdin);
         int message_len = strlen(send_buffer);
         send_buffer[message_len - 1] = '\0';
+        if (*send_buffer == '\0') {
+            continue;
+        } 
         
         if (close_client) {
             break;
@@ -158,23 +177,17 @@ void printfStatus(const char *status_text, ...)
     std::string status_line = buffer.str();
     
     va_list args;
-    printf(status_line.c_str(), args);
+    va_start(args, status_line);
+    vprintf(status_line.c_str(), args);
+    va_end(args);
 }
 
 int main()
 {
-    int server_socket = socket(
-        AF_INET,
-        SOCK_STREAM,
-        0
-    );
+    sockaddr_in sockaddr = enterServerAddress();
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     
-    sockaddr_in sockaddr;
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(8011);
-    sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-    printfStatus("подключение к серверу");
+    printfStatus("подключение к серверу %s", inet_ntoa(sockaddr.sin_addr));
     connectToServer(server_socket, sockaddr);
 
     printfStatus("открытие окна чата");
@@ -183,7 +196,6 @@ int main()
     ListenServerArgs listen_server_args = {server_socket};
     std::thread listen_server_thread(listenServer, &listen_server_args);
 
-    std::cout << "Введите имя: ";
     WriteToServerArgs write_to_server_args = {server_socket};
     std::thread write_to_server_thread(writeToServer, &write_to_server_args);
     write_to_server_thread.detach();
