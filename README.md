@@ -4,7 +4,7 @@
 - [Фичи](#фичи)
 - [Сборка проекта](#сборка-проекта)
 
-![два клиента](https://raw.githubusercontent.com/EvgeniyLupanov1024/EvgeniyLupanov1024/main/projects_media/ConsoleChatOnCPP/console_chat_cpp_01.gif)
+![два клиента](https://raw.githubusercontent.com/EvgeniyLupanov1024/EvgeniyLupanov1024/main/projects_media/ConsoleChatOnCPP/console_chat_cpp_02.gif)
 
 ## Фичи
 
