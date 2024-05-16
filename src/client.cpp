@@ -68,9 +68,13 @@ sockaddr_in enterServerAddress()
     sockaddr.sin_port = htons(8011);
 
     std::cout << "Введите адрес сервера: ";
-    char server_address[15];
+    char server_address[15] = {0};
     scanf("%s", server_address);
-    inet_pton(AF_INET, server_address, &sockaddr.sin_addr);
+    if (*server_address == '0') {
+        sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    } else {
+        inet_pton(AF_INET, server_address, &sockaddr.sin_addr);
+    }
 
     return sockaddr;
 }
@@ -105,9 +109,9 @@ void * listenServer(void *args)
 {
     int socket = ((ListenServerArgs *) args)->socket;
 
-    char recv_buffer[BUFFER_LEN] = {0};
     while(true)
     {
+        char recv_buffer[BUFFER_LEN] = {0};
         int recv_res = recv(
             socket, 
             recv_buffer, 

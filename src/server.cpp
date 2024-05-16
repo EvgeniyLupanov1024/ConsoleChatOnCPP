@@ -146,15 +146,15 @@ void sendMessageToUser(int user_socket, const char *buffer, user_id_t from_id)
     send(user_socket, message, message_len, 0);
 }
 
-void sendMembersToNewUser(int user_socket)
+void sendMembersToNewUser(int new_user_socket)
 {
-    for (std::pair<int, UserInfo> user_info : slave_sockets)
+    for (std::pair<int, UserInfo> old_user_info : slave_sockets)
     {
-        if (user_info.second.name == "") {
+        if (old_user_info.second.name == "") {
             continue;
         }
 
-        sendMessageToUser(user_socket, user_info.second.name.c_str(), user_info.second.id);
+        sendMessageToUser(new_user_socket, old_user_info.second.name.c_str(), old_user_info.second.id);
     }
 }
 
