@@ -17,6 +17,6 @@
 
 ## Сборка проекта
 
-Запустить `compile_all.sh` в корне проекта (под linux).
+Запустить `compile_all.sh` в корне проекта (под linux). В директории `build` появятся файлы `server` `client` и необщодимое окружение.
 
 <img src="https://raw.githubusercontent.com/EvgeniyLupanov1024/EvgeniyLupanov1024/main/projects_media/ConsoleChatOnCPP/console_chat_cpp_wrungel.jpg" align="middle" alt="Врунгель" width="60%">
